@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="message-box">
+  <h2>Chat Room: {{ code }}</h2>
+  <div class="messages" id="messages">
+    {% for msg in messages %}
+    <div class="text {{ 'outgoing' if msg.name == session['name'] else 'incoming' }}">
+      <span><strong>{{ msg.name }}</strong></span>
+      <span>{{ msg.message }}</span>
+      <span class="muted">{{ msg.get('time', '') }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="inputs">
+    <input
+      type="text"
+      placeholder="Type a message"
+      name="message"
+      id="message"
+      onkeydown="handleKeyPress(event)"
+    />
+    <button id="send-btn" onclick="sendMessage()">&#9658;</button>
+  </div>
+</div>
+
+<script>
+  const socketio = io("http://127.0.0.1:5000"); // Adjust this URL if running on a different port or host
+  const messages = document.getElementById("messages");
+
+  const createMessage = (name, msg, type) => {
+    const content = `
+      <div class="text ${type}">
+        <span><strong>${name}</strong></span>
+        <span>${msg}</span>
+        <span class="muted">${new Date().toLocaleString()}</span>
+      </div>
+    `;
+    messages.innerHTML += content;
+    messages.scrollTop = messages.scrollHeight; // Auto-scroll
+  };
+
+  // Listen for incoming messages
+  socketio.on("message", (data) => {
+    const type = data.name === "{{ session['name'] }}" ? "outgoing" : "incoming";
+    createMessage(data.name, data.message, type);
+  });
+
+  // Send a message
+  const sendMessage = () => {
+    const input = document.getElementById("message");
+    if (input.value.trim() === "") return; // Prevent sending empty messages
+    socketio.emit("message", { data: input.value });
+    createMessage("You", input.value, "outgoing");
+    input.value = ""; // Clear the input field after sending
+  };
+
+  // Handle Enter key press
+  const handleKeyPress = (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault(); // Prevent default behavior (e.g., form submission)
+      sendMessage(); // Call the sendMessage function
+    }
+  };
+</script>
+{% endblock %}
